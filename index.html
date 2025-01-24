@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon DJ Station - Final</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+          --neon-color: #0ff;
+          --bg-color: #1a1a1a;
+          --card-bg: rgba(0, 0, 0, 0.7);
+        }
+        
+        body {
+          margin: 0;
+          background: var(--bg-color);
+          font-family: 'Segoe UI', sans-serif;
+          min-height: 100vh;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          color: white;
+        }
+        
+        .container {
+          width: 90%;
+          max-width: 800px;
+          padding: 2rem;
+        }
+        
+        .neon-text {
+          text-align: center;
+          color: var(--neon-color);
+          text-shadow: 0 0 10px var(--neon-color);
+          font-size: 2.5rem;
+          margin-bottom: 2rem;
+        }
+        
+        .control-card {
+          background: var(--card-bg);
+          border-radius: 15px;
+          padding: 1.5rem;
+          margin: 1.5rem 0;
+          box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+          backdrop-filter: blur(10px);
+        }
+        
+        .control-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 1rem;
+          margin-top: 1rem;
+        }
+        
+        .neon-button {
+          position: relative;
+          background: none;
+          border: 2px solid var(--neon-color);
+          color: var(--neon-color);
+          padding: 1rem 2rem;
+          font-size: 1.2rem;
+          cursor: pointer;
+          transition: all 0.3s;
+          border-radius: 50px;
+          margin: 1rem 0;
+          width: 100%;
+        }
+        
+        .neon-button:hover {
+          background: rgba(0, 255, 255, 0.1);
+          box-shadow: 0 0 20px var(--neon-color);
+        }
+        
+        .progress-container {
+          width: 100%;
+          height: 5px;
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 3px;
+          margin: 1rem 0;
+        }
+        
+        .progress-bar {
+          height: 100%;
+          background: var(--neon-color);
+          width: 0;
+          transition: width 0.1s linear;
+          border-radius: 3px;
+        }
+        
+        input[type="range"] {
+          width: 100%;
+          -webkit-appearance: none;
+          background: rgba(255, 255, 255, 0.1);
+          height: 5px;
+          border-radius: 3px;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          width: 15px;
+          height: 15px;
+          background: var(--neon-color);
+          border-radius: 50%;
+          cursor: pointer;
+          box-shadow: 0 0 10px var(--neon-color);
+        }
+        
+        #visualizer {
+          width: 100%;
+          height: 150px;
+          margin: 2rem 0;
+          border-radius: 10px;
+          background: rgba(0, 0, 0, 0.3);
+        }
+        
+        .effect-button {
+          background: rgba(255, 255, 255, 0.1);
+          border: 1px solid var(--neon-color);
+          color: white;
+          padding: 0.8rem;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.3s;
+        }
+        
+        .effect-button.active {
+          background: var(--neon-color);
+          color: black;
+          box-shadow: 0 0 15px var(--neon-color);
+        }
+        
+        .effect-button:hover {
+          background: rgba(0, 255, 255, 0.2);
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <h1 class="neon-text">NEON DJ STATION</h1>
+
+        <canvas id="visualizer"></canvas>
+
+        <div class="control-card">
+            <h2><i class="fas fa-music"></i> Carillon</h2>
+            <button id="play-carillon" class="neon-button">
+                <i class="fas fa-play"></i>
+            </button>
+            <div class="progress-container">
+                <div id="progress-bar" class="progress-bar"></div>
+            </div>
+        </div>
+
+        <div class="control-card">
+            <h2><i class="fas fa-sliders-h"></i> DiscJokey</h2>
+            <div class="control-grid">
+                <div class="control-item">
+                    <label>Pitch</label>
+                    <input type="range" id="pitch" min="0.5" max="2" step="0.1" value="1">
+                </div>
+                <div class="control-item">
+                    <label>Volume</label>
+                    <input type="range" id="volume" min="-30" max="0" step="1" value="-10">
+                </div>
+                <div class="control-item">
+                    <button id="reverb" class="effect-button">
+                        <i class="fas fa-water"></i> Reverb
+                    </button>
+                </div>
+                <div class="control-item">
+                    <button id="delay" class="effect-button">
+                        <i class="fas fa-wave-square"></i> Delay
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Ûë˛
+        const masterVolume = new Tone.Volume(-10).toDestination();
+        const delayEffect = new Tone.PingPongDelay({
+          delayTime: 0.3,
+          feedback: 0.4,
+          wet: 0
+        }).connect(masterVolume);
+        
+        const reverbEffect = new Tone.Reverb({
+          decay: 3.5,
+          preDelay: 0.15,
+          wet: 0
+        }).connect(delayEffect);
+        
+        const pitchShift = new Tone.PitchShift({
+          pitch: 0,
+          windowSize: 0.08
+        }).connect(reverbEffect);
+        
+        // ∂°
+        let isPlaying = false;
+        let activeLoops = [];
+        let activeSynths = null;
+        
+        // ˙h
+        const createSynths = () => ({
+          kick: new Tone.MembraneSynth().connect(pitchShift),
+          hihat: new Tone.NoiseSynth({
+            noise: { type: "white" },
+            envelope: { attack: 0.005, decay: 0.1 }
+          }).connect(pitchShift),
+          snare: new Tone.NoiseSynth({
+            noise: { type: "white" },
+            envelope: { attack: 0.005, decay: 0.2 }
+          }).connect(pitchShift),
+          piano: new Tone.PolySynth(Tone.Synth).connect(pitchShift),
+          bass: new Tone.MonoSynth({
+            oscillator: { type: "sawtooth" },
+            envelope: { attack: 0.05, decay: 0.2, sustain: 0.3, release: 0.8 }
+          }).connect(pitchShift)
+        });
+        
+        // ˙ÛP™Ø
+        const createLoops = (synths) => {
+          // NÛ™Ø
+          const bassLoop = new Tone.Loop((time) => {
+            const bassNotes = [
+              // Comp·s 1
+              { note: "G2", duration: "8n", time: "0:0:0" },
+              { note: "G2", duration: "8n", time: "0:0:2" },
+              { note: "F2", duration: "8n", time: "0:1:0" },
+              { note: "F2", duration: "8n", time: "0:1:2" },
+              { note: "Eb2", duration: "8n.", time: "0:2:0" },
+              { note: "Eb2", duration: "8n.", time: "0:2:3" },
+              { note: "Eb2", duration: "8n", time: "0:3:2" },
+        
+              // Comp·s 2
+              { note: "Eb2", duration: "8n", time: "1:0:0" },
+              { note: "Eb2", duration: "8n", time: "1:0:2" },
+              { note: "F2", duration: "8n", time: "1:1:0" },
+              { note: "F2", duration: "8n", time: "1:1:2" },
+              { note: "C2", duration: "8n.", time: "1:2:0" },
+              { note: "C2", duration: "8n.", time: "1:2:3" },
+              { note: "C2", duration: "8n", time: "1:3:2" },
+        
+              // Comp·s 3
+              { note: "C2", duration: "8n", time: "2:0:0" },
+              { note: "C2", duration: "8n", time: "2:0:2" },
+              { note: "D2", duration: "8n", time: "2:1:0" },
+              { note: "D2", duration: "8n", time: "2:1:2" },
+              { note: "Eb2", duration: "8n.", time: "2:2:0" },
+              { note: "Eb2", duration: "8n.", time: "2:2:3" },
+              { note: "Eb2", duration: "8n", time: "2:3:2" },
+        
+              // Comp·s 4
+              { note: "Eb2", duration: "8n", time: "3:0:0" },
+              { note: "Eb2", duration: "8n", time: "3:0:2" },
+              { note: "F2", duration: "8n", time: "3:1:0" },
+              { note: "F2", duration: "8n", time: "3:1:2" },
+              { note: "G2", duration: "8n.", time: "3:2:0" },
+              { note: "G2", duration: "8n.", time: "3:2:3" },
+              { note: "G2", duration: "8n", time: "3:3:2" },
+            ];
+        
+            bassNotes.forEach(({ note, duration, time: noteTime }) => {
+              synths.bass.triggerAttackRelease(note, duration, time + Tone.Time(noteTime));
+            });
+          }, "4m").start(0);
+        
+          // ¢4™Ø
+          const pianoLoop = new Tone.Loop((time) => {
+            const melodyNotes = [
+              { note: "Bb4", duration: "8n", time: "0:0:0" },
+              { note: "Bb4", duration: "8n", time: "0:0:2" },
+              { note: "A4", duration: "8n", time: "0:1:0" },
+              { note: "A4", duration: "8n", time: "0:1:2" },
+              { note: "G4", duration: "8n.", time: "0:2:0" },
+              { note: "G4", duration: "8n.", time: "0:2:3" },
+              { note: "G4", duration: "8n", time: "0:3:2" },
+            ];
+        
+            const harmonyNotes = [
+              { note: "G4", duration: "8n", time: "0:0:0" },
+              { note: "G4", duration: "8n", time: "0:0:2" },
+              { note: "F4", duration: "8n", time: "0:1:0" },
+              { note: "F4", duration: "8n", time: "0:1:2" },
+              { note: "D4", duration: "8n.", time: "0:2:0" },
+              { note: "D4", duration: "8n.", time: "0:2:3" },
+              { note: "D4", duration: "8n", time: "0:3:2" },
+            ];
+        
+            melodyNotes.forEach(({ note, duration, time: noteTime }) => {
+              synths.piano.triggerAttackRelease(note, duration, time + Tone.Time(noteTime));
+            });
+        
+            harmonyNotes.forEach(({ note, duration, time: noteTime }) => {
+              synths.piano.triggerAttackRelease(note, duration, time + Tone.Time(noteTime));
+            });
+          }, "1m").start(0);
+        
+          // ™Ø
+          const beatLoop = new Tone.Loop((time) => {
+            synths.kick.triggerAttackRelease("C1", "8n", time);
+            synths.hihat.triggerAttackRelease("16n", time);
+          }, "4n").start(0);
+        
+          const snarePart = new Tone.Part((time) => {
+            synths.snare.triggerAttackRelease("16n", time);
+          }, [
+            ["0:1:0"], // Time 2
+            ["0:3:0"], // Time 4
+          ]).start(0);
+          snarePart.loop = true;
+          snarePart.loopEnd = "1m";
+        
+          return [bassLoop, pianoLoop, beatLoop, snarePart];
+        };
+        
+        // ≠>ß6
+        document.getElementById('play-carillon').addEventListener('click', async () => {
+          try {
+            await Tone.start();
+            
+            if (!isPlaying) {
+              // ÀDê
+              activeSynths = createSynths();
+              activeLoops = createLoops(activeSynths);
+              
+              // æn¬p
+              Tone.Transport.bpm.value = 125;
+              Tone.Transport.start();
+              
+              // Ù∞Lb
+              document.getElementById('play-carillon').innerHTML = '<i class="fas fa-pause"></i>';
+              startVisualization();
+            } else {
+              // Dê
+              activeLoops.forEach(loop => loop.dispose());
+              Object.values(activeSynths).forEach(synth => synth.dispose());
+              Tone.Transport.stop();
+              
+              // Õn∂
+              document.getElementById('play-carillon').innerHTML = '<i class="fas fa-play"></i>';
+              activeLoops = [];
+              activeSynths = null;
+            }
+            isPlaying = !isPlaying;
+          } catch (error) {
+            console.error('Audio error:', error);
+          }
+        });
+        
+        // ß6ü˝
+        document.getElementById('pitch').addEventListener('input', e => {
+          const value = parseFloat(e.target.value);
+          Tone.Transport.playbackRate = value;
+          pitchShift.pitch = (value - 1) * 12;
+        });
+        
+        document.getElementById('volume').addEventListener('input', e => {
+          masterVolume.volume.value = e.target.value;
+        });
+        
+        document.getElementById('reverb').addEventListener('click', () => {
+          const target = reverbEffect.wet.value > 0.1 ? 0 : 0.4;
+          reverbEffect.wet.rampTo(target, target > 0 ? 0.8 : 1.2);
+          document.getElementById('reverb').classList.toggle('active');
+        });
+        
+        document.getElementById('delay').addEventListener('click', () => {
+          const target = delayEffect.wet.value > 0.1 ? 0 : 0.3;
+          delayEffect.wet.rampTo(target, 0.6);
+          document.getElementById('delay').classList.toggle('active');
+        });
+        
+        // Ô∆˚ﬂ
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+        const analyser = new Tone.Analyser('waveform', 2048);
+        Tone.Destination.connect(analyser);
+        
+        function resizeCanvas() {
+          canvas.width = canvas.offsetWidth;
+          canvas.height = canvas.offsetHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        
+        function drawVisualizer() {
+          requestAnimationFrame(drawVisualizer);
+          
+          if (!isPlaying) return;
+          
+          const values = analyser.getValue();
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          
+          ctx.beginPath();
+          ctx.strokeStyle = '#0ff';
+          ctx.lineWidth = 2;
+          
+          const sliceWidth = canvas.width / values.length;
+          let x = 0;
+          
+          for (let i = 0; i < values.length; i++) {
+            const y = canvas.height/2 + values[i] * 50;
+            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            x += sliceWidth;
+          }
+          
+          ctx.stroke();
+        }
+        
+        function startVisualization() {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          drawVisualizer();
+        }
+    </script>
+</body>
+
+</html>
